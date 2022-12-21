@@ -52,3 +52,22 @@ async def create_order(order: OrderModel , Authorize: AuthJWT=Depends()):
     }
 
     return jsonable_encoder(response)
+
+
+@order_router.get('/getAll')
+def getAllOrders(Authorize: AuthJWT=Depends()):
+
+    try:
+        Authorize.jwt_required()
+    except Exception as e:
+        raise HTTPException(status_code=401 , detail="id is Invalid/empty")
+    
+    # authorized tho hai
+    current_user = Authorize.get_jwt_subject()
+    user = session.query(User).filter(User.username == current_user).first()
+
+    if user.is_staff :
+        orders = session.query(Order).all()
+        return jsonable_encoder(orders)
+    
+    raise HTTPException(status_code=401 , detail="User must be super user to see all the orders")
