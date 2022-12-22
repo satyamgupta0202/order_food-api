@@ -25,7 +25,7 @@ async def hello(Authorize: AuthJWT=Depends()):
     return {"welcome order vro"}
 
 @order_router.post('/order')
-async def create_order(order: OrderModel , Authorize: AuthJWT=Depends()):
+def create_order(order: OrderModel , Authorize: AuthJWT=Depends()):
     try:
         Authorize.jwt_required()
     except Exception as e:
@@ -33,19 +33,20 @@ async def create_order(order: OrderModel , Authorize: AuthJWT=Depends()):
 
     # authorized to pakka hai ab
     currentUser = Authorize.get_jwt_subject()
-    user = session.query(Order).filter(User.username == currentUser).first()
+    user = session.query(User).filter(User.username == currentUser).first()
 
     new_order = Order(
         pizza_size= order.pizza_size,
         quantity=order.quantity,
     )
 
+    print(new_order)
     new_order.user = user
     session.add(new_order)
     session.commit()
 
     response = {
-        "pizza_size" :new_order.pizza_size,
+        "pizza_size":new_order.pizza_size,
         "quantity" : new_order.quantity,
         "id":new_order.id,    
         "order_status":new_order.order_status
@@ -53,7 +54,7 @@ async def create_order(order: OrderModel , Authorize: AuthJWT=Depends()):
 
     return jsonable_encoder(response)
 
-
+# get all order of specific user
 @order_router.get('/getAll')
 def getAllOrders(Authorize: AuthJWT=Depends()):
 
@@ -71,3 +72,81 @@ def getAllOrders(Authorize: AuthJWT=Depends()):
         return jsonable_encoder(orders)
     
     raise HTTPException(status_code=401 , detail="User must be super user to see all the orders")
+
+
+
+# get particular order of specific user
+@order_router.get('/getorder/{id}')
+async def get_order_by_id(id:int , Authorize:AuthJWT=Depends()):
+    try:
+        Authorize.jwt_required()
+    except Exception as e:
+        raise HTTPException(status_code=401 , detail="jwt is invalid/missing")
+
+    # authorize tho ho gya
+    current_user = Authorize.get_jwt_subject()
+    user = session.query(User).filter(User.username == current_user).first()
+
+    orders = session.query(Order).filter(Order.id == id).first()
+    print(orders)
+    return await jsonable_encoder(orders)
+
+    # raise HTTPException(status_code=401 , detail="Invalid token/missing token")
+
+
+# Get all orders of a specific user
+@order_router.get('/user/orders')
+def get_order_user(Authorize:AuthJWT=Depends()):
+    try:
+        Authorize.jwt_required()
+    except Exception as e:
+        raise HTTPException(
+            status_code=401,
+            detail="Invalid Token"
+        )
+
+    user=Authorize.get_jwt_subject()
+
+
+    current_user=session.query(User).filter(User.username==user).first()
+
+    return jsonable_encoder(current_user.orders)
+
+@order_router.get('/user/order/{id}')
+async def get_order_user_with_id(id: int , Authorize:AuthJWT=Depends()):
+    try:
+        Authorize.jwt_required()
+    except Exception as e:
+        raise HTTPException(status_code=401 , detail="jwt token is Invalid/Required")
+    
+    current_user = Authorize.get_jwt_subject()
+
+    user = session.query(User).filter(User.username == current_user).first()
+
+    orders = user.orders
+
+    for o in orders:
+        if o.id == id:
+            return o
+
+    raise HTTPException(status_code=404 , detail="no such order found")
+
+
+@order_router.put('/order/update/{id}')
+async def update_order_with_id(id:int ,order:OrderModel, Authorize:AuthJWT=Depends()):
+
+    try:
+        Authorize.jwt_required()
+    except Exception as e:
+        raise HTTPException(status_code=401 , detail="token is either empty or invalid")
+    
+    current_user = Authorize.get_jwt_subject()
+    # user = session.query(User).filter(User.id == current_user).first()
+    order_to_update= session.query(Order).filter(Order.id == id).first()
+    
+    order_to_update.quantity = order.quantity
+    order_to_update.pizza_size=order.pizza_size
+    
+    session.commit()
+
+    return jsonable_encoder(order_to_update)
