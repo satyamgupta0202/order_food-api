@@ -150,3 +150,23 @@ async def update_order_with_id(id:int ,order:OrderModel, Authorize:AuthJWT=Depen
     session.commit()
 
     return jsonable_encoder(order_to_update)
+
+
+@order_router.put('/order/statusupdate/{id}')
+def update_order_status(id: int ,order:OrderModel,  Authenticate: AuthJWT=Depends()):
+
+    try:
+        Authenticate.jwt_required()
+    except Exception as e:
+        raise HTTPException(status_code=401 , detail= "token is either inValid/Empty")
+    
+    current_user = Authenticate.get_jwt_subject()
+    # user = session.query(User).filter(User.id == current_user).first()
+
+    updated_order = session.query(Order).filter(Order.id == id).first()
+
+    updated_order.order_status = order.order_status
+
+    session.commit()
+
+    return jsonable_encoder(updated_order)
